@@ -1,0 +1,270 @@
+---
+API: 2.1
+OpenSesame: 3.3.9b1
+Platform: posix
+---
+set width 1024
+set uniform_coordinates yes
+set title "New experiment"
+set subject_parity even
+set subject_nr 0
+set start experiment
+set sound_sample_size -16
+set sound_freq 48000
+set sound_channels 2
+set sound_buf_size 1024
+set sampler_backend psycho
+set round_decimals 2
+set mouse_backend psycho
+set keyboard_backend psycho
+set height 768
+set fullscreen no
+set form_clicks no
+set foreground black
+set font_underline no
+set font_size 18
+set font_italic no
+set font_family mono
+set font_bold no
+set experiment_path "/home/wouter/teaching/CognitiveModelling2021/FP_riverdike"
+set disable_garbage_collection yes
+set description "The main experiment item"
+set coordinates uniform
+set compensation 0
+set color_backend psycho
+set clock_backend psycho
+set canvas_backend psycho
+set background "#babdb6"
+
+define feedback Block_fb_keypress
+	set reset_variables yes
+	set duration keypress
+	set description "Provides feedback to the participant"
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="That's the end of block [Block_nr] / [total_blocks]!<br /><br />You were [acc]% accurate,<br />and your average response time was [avg_rt]ms.<br /><br /><br />Feel free to give yourself a bit of rest,<br />then hit 'SPACE' to start the next block." x=0 y=0 z_index=0
+
+define feedback Block_fb_timed
+	set reset_variables no
+	set duration 1500
+	set description "Provides feedback to the participant"
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="That's the end of block [Block_nr] / [total_blocks]!<br /><br />You were [acc]% accurate,<br />and your average response time was [avg_rt]ms.<br /><br /><br />Feel free to give yourself a bit of rest,<br />then hit 'SPACE' to start the next block." x=0 y=0 z_index=0
+
+define sketchpad ITI_screen
+	set duration 0
+	set description "Displays stimuli"
+	draw fixdot color=white show_if=always style=default x=0 y=0 z_index=0
+
+define advanced_delay ITIjitter
+	set jitter_mode Uniform
+	set jitter 750
+	set duration 750
+	set description "Waits for a specified duration"
+
+define sketchpad Instructions_3
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="The time between 'get ready' and 'Go!' <br />will vary randomly across trials.<br /><br />This task is quite straightforward, and may get a bit boring. <br />However, we urge you to keep trying your best throughout.<br />This will tell us a lot about the nature of <br />preparation processes in the human brain.<br /><br />Next up, will be 15 trials to practice.<br />After that, the experiment will start<br /><br />get ready! <br />Put your fingers on Z and M, <br />and hit SPACE to start." x=0 y=0 z_index=0
+
+define sketchpad Instructions_4
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="The real experiment will now start.<br /><br />It is divided into [total_blocks] blocks.<br />In between blocks, you will see your <br />score, and be able to take some rest.<br /><br />Ready? <br />Fingers on Z and M,<br />and press SPACE to start!" x=0 y=0 z_index=0
+
+define sketchpad S1
+	set duration "[foreperiod]"
+	set description "Displays stimuli"
+	draw fixdot color=black show_if=always style="large-filled" x=0 y=0 z_index=0
+
+define inline_script S1S2
+	set description "Executes Python code"
+	___run__
+	clock.sleep(var.ITI)
+	var.S1canv.show()
+	clock.sleep(var.foreperiod)
+	var.S2canv.show()
+	__end__
+	set _prepare ""
+
+define sketchpad S2
+	set duration 0
+	set description "Displays stimuli"
+	draw fixdot color=black show_if=always style="large-filled" x=0 y=0 z_index=0
+	draw rect color=black fill=1 h=70 penwidth=1 show_if=always w=70 x="=var.tpos-35" y=-35 z_index=0
+
+define inline_script config
+	set description "Executes Python code"
+	___run__
+	# for i in range(10):
+	#     items.execute('trial_sequence')
+	__end__
+	___prepare__
+	import numpy as np
+	
+	var.FPs = [400,1100]
+	
+	#### THESE VARS ARE NOT USED; SEE ITIjitter item!
+	var.ITImin = 600
+	var.ITImax = 1300
+	
+	
+	#### the probability sequence: rivers and dikes 
+	maxp = 0.75
+	minp = 1-maxp
+	flatdur = 95
+	slopedur= 40
+	flat = np.array([0.5]*flatdur)
+	## A river and a dike last 3*80=240tr each
+	river  = np.r_[np.linspace(0.5,minp,slopedur), # drop,  
+	               [minp]*flatdur,                # bottom
+	               np.linspace(minp, 0.5,slopedur)]# rise
+	dike   = np.r_[np.linspace(0.5,maxp,slopedur), # rise,  
+	               [maxp]*flatdur,                # top
+	               np.linspace(maxp, 0.5,slopedur)]# fall
+	
+	
+	#var.probseq = np.r_[flat, river, flat[:(phasedur//2)], dike, flat ]
+	var.probseq = np.r_[flat, river, flat, dike, flat ] ### is this ok; if shortened needed, use the above....
+	
+	var.practice_probseq = flat[:15]
+	var.pshort = .5 ### happy prep
+	__end__
+
+define sequence experiment
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run config always
+	run getting_started always
+	run welcome always
+	run instructions_1 always
+	run instructions_2 always
+	run Instructions_3 always
+	run trial_runner always
+	run Instructions_4 never
+	run trial_sequence never
+	run fb_sequence never
+
+define sequence fb_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run Block_fb_timed always
+	run Block_fb_keypress always
+	run update_block_nr always
+
+define notepad getting_started
+	__note__
+	Welcome to OpenSesame 3.3 "Lentiform Loewenfeld"!
+	If you are new to OpenSesame, it is a good idea to follow one of the tutorials,
+	which can be found on the documentation site:
+	- <http://osdoc.cogsci.nl/>
+	You can also check out the examples. These can be opened via:
+	- Menu -> Tools -> Example experiments.
+	And feel free to ask for help on the forum:
+	- <http://forum.cogsci.nl/>
+	Have fun with OpenSesame!
+	__end__
+	set description "A simple notepad to document your experiment. This plug-in does nothing."
+
+define inline_script init_trial
+	set description "Executes Python code"
+	set _run ""
+	___prepare__
+	import numpy as np
+	
+	var.tdir = tdir  = np.random.choice([-1, 1]) 
+	var.tpos = tdir * 85
+	var.correct_response = 'm' if tdir ==1 else 'z'
+	
+	var.foreperiod = np.random.choice(var.FPs, p = [var.pshort, 1-var.pshort] )
+	
+	var.ITI = (var.ITImax - var.ITImin) * np.random.random_sample() + var.ITImin
+	var.ITI = int(var.ITI)
+	
+	var.S1canv = Canvas()
+	var.S1canv.fixdot(style='large-filled')
+	var.S2canv= Canvas()
+	var.S2canv.fixdot(style='default', color='white')
+	var.S2canv.rect(x = -30 + (tdir * 85), y=-30, w=60, h=60, fill=True)
+	__end__
+
+define sketchpad instructions_1
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="In this experiment, we will be assessing your ability<br />to prepare for an upcoming target, <br />and how being prepared affects the speed of your responses. <br /><br />In the experiment, you are asked to fixate on a central fixation dot. <br />This dot will then change into a large filled circle. <br />This means that a target will appear soon.<br /><br />Then, the target (a black square) will appear <br />on the left or right of fixation.<br />Your task is to press 'Z' if it appears on the left, <br />and 'M' if it appears on the right.<br /><br /><br />Your task is to respond as fast as possible, <br />while mantaining a high accuracy (>95% correct)<br /><br />press SPACE for an illustration" x=0 y=0 z_index=0
+
+define sketchpad instructions_2
+	set duration keypress
+	set description "Displays stimuli"
+	draw fixdot color=white show_if=always style=default x=-224 y=-192 z_index=0
+	draw rect color=black fill=0 h=192 penwidth=1 show_if=always w=256 x=-352 y=-288 z_index=0
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="1. Waiting.." x=-288 y=-320 z_index=0
+	draw fixdot color=black show_if=always style="large-filled" x=224 y=-192 z_index=0
+	draw rect color=black fill=0 h=192 penwidth=1 show_if=always w=256 x=96 y=-288 z_index=0
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="2. Get Ready.." x=192 y=-320 z_index=0
+	draw fixdot color=white show_if=always style=default x=-224 y=192 z_index=0
+	draw rect color=black fill=0 h=192 penwidth=1 show_if=always w=256 x=-352 y=96 z_index=0
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="3. Go! Press 'M'" x=-256 y=42 z_index=0
+	draw rect color=black fill=1 h=64 penwidth=1 show_if=always w=64 x=-192 y=160 z_index=0
+	draw textline center=1 color=black font_bold=no font_family=mono font_italic=no font_size=18 html=yes show_if=always text="Press 'Z' as soon as you<br />see a target on the left<br /><br />Press 'M' as soon as you<br />see a target on the right<br /><br />(press SPACE for <br />final instructions)" x=192 y=160 z_index=0
+
+define logger logger
+	set description "Logs experimental data"
+	set auto_log yes
+
+define keyboard_response my_kb
+	set timeout infinite
+	set flush yes
+	set event_type keypress
+	set duration keypress
+	set description "Collects keyboard responses"
+	set allowed_responses "z;m"
+
+define inline_script trial_runner
+	set description "Executes Python code"
+	___run__
+	var.Block_nr = 0
+	### practice phase
+	for idx,var.pshort in enumerate(var.practice_probseq):
+	    var.tr_idx = 0
+	    items.execute('trial_sequence')
+	    
+	items.execute('fb_sequence')
+	items.execute("instructions_4")
+	
+	### The actual experiment
+	for idx, var.pshort in enumerate(var.probseq):
+	    var.tr_idx = idx+1
+	    items.execute('trial_sequence')
+	    
+	    if (var.tr_idx) % var.trials_per_block == 0:
+	        # give feedback & offer a break:
+	        items.execute('fb_sequence')
+	        
+	__end__
+	___prepare__
+	total_trials = var.probseq.size
+	var.trials_per_block = 91
+	var.total_blocks = total_trials // var.trials_per_block
+	if total_trials % var.trials_per_block:
+	    var.total_blocks += 1
+	__end__
+
+define sequence trial_sequence
+	set flush_keyboard yes
+	set description "Runs a number of items in sequence"
+	run init_trial always
+	run ITI_screen always
+	run S1S2 always
+	run my_kb always
+	run logger always
+
+define inline_script update_block_nr
+	set description "Executes Python code"
+	set _run "var.Block_nr += 1"
+	set _prepare ""
+
+define sketchpad welcome
+	set start_response_interval no
+	set reset_variables no
+	set duration keypress
+	set description "Displays stimuli"
+	draw textline center=1 color=black font_bold=no font_family=serif font_italic=no font_size=32 html=yes show_if=always text="Welcome to this study<br />on<br /><i>temporal preparation</i><br /><br /><br />(press SPACE to continue)" x=16 y=-34 z_index=0
+
